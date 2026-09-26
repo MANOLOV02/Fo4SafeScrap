@@ -1,0 +1,14 @@
+<Project>
+
+  <!-- IDENTIDAD DE LOS ENSAMBLADOS DE ESTE REPO. Misma ley que ..\FO4_Base_Library\Directory.Build.props:
+       `<Version>` es la unica perilla (AssemblyVersion, FileVersion, InformationalVersion) y `<Company>` es
+       lo que Shared\VersionGate.vb compara para decidir que DLL son de esta familia. -->
+
+  <PropertyGroup>
+    <Version>0.1.1</Version>
+    <Company>MANOLOV02</Company>
+    <Copyright>Copyright (c) 2026 MANOLOV02</Copyright>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+</Project>

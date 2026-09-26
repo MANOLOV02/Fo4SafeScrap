@@ -1,0 +1,62 @@
+{
+  "format": 1,
+  "comment": "Warning words: when the model folder says yes but the EditorID contains one of these words, the object is lowered to review.",
+  "categories": [
+    {
+      "name": "plant",
+      "words": [
+        "algae",
+        "bush",
+        "fern",
+        "flower",
+        "hedge",
+        "kelp",
+        "leaf",
+        "leaves",
+        "log",
+        "logs",
+        "plant",
+        "root",
+        "roots",
+        "sapling",
+        "seaweed",
+        "shrub",
+        "stump",
+        "tree",
+        "trees",
+        "vine",
+        "vines"
+      ]
+    },
+    {
+      "name": "terrain",
+      "words": [
+        "boulder",
+        "cliff",
+        "curb",
+        "mound",
+        "road",
+        "rock",
+        "rocks",
+        "sidewalk",
+        "slope"
+      ]
+    },
+    {
+      "name": "building",
+      "words": [
+        "beam",
+        "ceiling",
+        "column",
+        "floor",
+        "foundation",
+        "girder",
+        "pillar",
+        "roof",
+        "stairs",
+        "wall",
+        "walls"
+      ]
+    }
+  ]
+}

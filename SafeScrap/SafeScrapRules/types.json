@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "comment": "Type rules: the default for every object of a record type. It wins over the folder rules, but not over your decisions (object, group, or a folder you decided). Each type may appear once.",
+  "rules": [
+    {
+      "type": "CONT",
+      "decision": "no",
+      "reason": "holds items"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+<Project>
+
+  <!-- ============================================================================================
+       BUILD GUARD OF SafeScrap's EMBEDDED F4SE PLUGIN (SafeScrap_FO4.dll).  Only READS.
+
+       THE LAW of the check lives in FO4_Base_Library\EmbeddedNativePlugin.targets (one seat for every app
+       that carries an embedded plugin). This file declares SafeScrap's plugin and imports it.
+
+       WHAT IT CATCHES:
+         1. the .vbproj lost its <EmbeddedResource> with the LogicalName GameExport.NewPlugin looks up: Export
+            would say "the plugin is not part of this version" and install nothing;
+         2. the .dll is not here (it is built from SafeScrap\Native\SafeScrap_FO4 and copied next to this file);
+         3. the .dll is a MEASUREMENT build (#define TRACE 1: it writes a log line per scrapped object), found by
+            its text "[trace]"; with the positive control "Not hooking." (in every build) so an unreadable file
+            is reported apart instead of passing empty.
+
+       WHY IT LIVES HERE AND NOT IN THE .vbproj: the VS designer rewrites the .vbproj, and a guard written inside
+       the file it watches is deleted together with what it watches (the NPC Manager lesson,
+       FO4_NPC_Manager\Native\PluginNativoEmbebido.targets).
+
+       HOW THE .dll IS REGENERATED
+         msbuild SafeScrap\Native\SafeScrap_FO4\SafeScrap_FO4.vcxproj /p:Configuration=Release /p:Platform=x64
+         copy    SafeScrap\Native\SafeScrap_FO4\bin\x64\Release\SafeScrap_FO4.dll  SafeScrap\Native\
+       with `#define TRACE 0` in the source.
+
+       Error only in Publish (what ships); a warning in Debug/Release. -p:PluginNativoEsError=true|false forces it.
+       ============================================================================================ -->
+
+  <ItemGroup>
+    <EmbeddedNativePluginCheck Include="$(MSBuildThisFileDirectory)SafeScrap_FO4.dll">
+      <LogicalName>SafeScrap.Native.SafeScrap_FO4.dll</LogicalName>
+      <ForbiddenMarker>[trace]</ForbiddenMarker>
+      <RequiredMarker>Not hooking.</RequiredMarker>
+      <MissingResourceWarning>The &lt;EmbeddedResource&gt; {LogicalName} is missing from {ProjectFile}: Export to game would install no F4SE plugin. The VS designer may have removed it. See SafeScrap\Native\SafeScrapPlugin.targets.</MissingResourceWarning>
+      <MissingResourceError>The &lt;EmbeddedResource&gt; {LogicalName} is missing from {ProjectFile} and this is what SHIPS: Export to game would install no F4SE plugin. See SafeScrap\Native\SafeScrapPlugin.targets. To build anyway: -p:PluginNativoEsError=false</MissingResourceError>
+      <MissingDllWarning>SafeScrap_FO4.dll is not built: build SafeScrap\Native\SafeScrap_FO4 and copy the .dll next to SafeScrap\Native\SafeScrapPlugin.targets.</MissingDllWarning>
+      <MissingDllError>SafeScrap_FO4.dll is not built and this is what SHIPS. See SafeScrap\Native\SafeScrapPlugin.targets.</MissingDllError>
+      <ForbiddenWarning>SafeScrap_FO4.dll is a MEASUREMENT build (TRACE 1): it writes a log line for every scrapped object. Rebuild with '#define TRACE 0'. See SafeScrap\Native\SafeScrapPlugin.targets.</ForbiddenWarning>
+      <ForbiddenError>SafeScrap_FO4.dll is a MEASUREMENT build (TRACE 1) and this is what SHIPS: it would write a log line for every scrapped object on every user's machine. Rebuild with '#define TRACE 0'. See SafeScrap\Native\SafeScrapPlugin.targets.</ForbiddenError>
+      <UnreadableWarning>The measurement-build check found neither the trace text nor the text every build has: it is not reading the content of SafeScrap_FO4.dll, so that check would pass empty. See SafeScrap\Native\SafeScrapPlugin.targets.</UnreadableWarning>
+    </EmbeddedNativePluginCheck>
+  </ItemGroup>
+
+  <Import Project="$(MSBuildThisFileDirectory)..\..\FO4_Base_Library\EmbeddedNativePlugin.targets" />
+
+</Project>
