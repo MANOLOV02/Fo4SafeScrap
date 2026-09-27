@@ -4,287 +4,287 @@
   "rules": [
     {
       "folder": "setdressing\\rubble",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\paperdebris",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\cluttergeneric",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\sidewalkclutter",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\crates",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\woodcrate",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\beercrate",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\shippingcrates",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\fatmancrate",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\skeletons",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\corpses",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\brahmincorpse",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\deadfish",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\whale",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\butchermeat",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\robotdebris",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\bricksblocks",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\tires",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\trashbin",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\trashcan",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\vehicles",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\autoparts",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\autoengine",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "vehicles\\automotive",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\metalbarrel",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\barreltank",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\playerhouse_ruin",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\mattress",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\suitcase",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\dufflebag",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\steamertrunk",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\lunchbox",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\babycarriage",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\shoppingcart",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\tricycle",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\handcart",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\flatbedcart",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\woodpallets",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\plywoodblockers",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\construction",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\containers",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\metalbox",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\toolbox",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\toolcase",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\oxygentank",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\weedwhacker",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "props\\lawnmower",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "props\\bucketsandbaskets",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\ammo",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\glowingsea",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\shipcrate",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\robotclutter",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\trashobjects",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\junkyard",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\whalebones",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\metalbarrelopen",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {
       "folder": "setdressing\\raider",
-      "decision": "yes",
+      "decision": "review",
       "reason": "junk"
     },
     {

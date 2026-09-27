@@ -44,7 +44,7 @@ Partial Class RulesDialog
         TypesLayout = New TableLayoutPanel()
         LabelTypesHelp = New Label()
         GridTypes = New DataGridView()
-        ColType = New DataGridViewTextBoxColumn()
+        ColType = New DataGridViewComboBoxColumn()
         ColTypeDecision = New DataGridViewComboBoxColumn()
         ColTypeReason = New DataGridViewTextBoxColumn()
         ColTypeMatches = New DataGridViewTextBoxColumn()
@@ -317,7 +317,7 @@ Partial Class RulesDialog
         LabelTypesHelp.Name = "LabelTypesHelp"
         LabelTypesHelp.TabIndex = 0
         LabelTypesHelp.Text = "The default for every object of a record type, e.g. CONT (containers: they hold items). It wins over the folder rules, " &
-            "but not over your decisions: an object or group you decided, or a folder you decided on the Folders tab. Write the 4-letter record type (CONT, STAT, FURN...)."
+            "but not over your decisions: an object or group you decided, or a folder you decided on the Folders tab. Pick the record type from the list: it has the types of the loaded objects."
         '
         'GridTypes
         '
@@ -607,7 +607,7 @@ Partial Class RulesDialog
     Friend WithEvents TypesLayout As TableLayoutPanel
     Friend WithEvents LabelTypesHelp As Label
     Friend WithEvents GridTypes As DataGridView
-    Friend WithEvents ColType As DataGridViewTextBoxColumn
+    Friend WithEvents ColType As DataGridViewComboBoxColumn
     Friend WithEvents ColTypeDecision As DataGridViewComboBoxColumn
     Friend WithEvents ColTypeReason As DataGridViewTextBoxColumn
     Friend WithEvents ColTypeMatches As DataGridViewTextBoxColumn

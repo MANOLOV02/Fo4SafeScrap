@@ -29,7 +29,6 @@ Partial Class MainForm
         ActionBar = New FlowLayoutPanel()
         ButtonSave = New Button()
         ButtonClear = New Button()
-        ButtonLoadOrder = New Button()
         ButtonRules = New Button()
         ButtonHowItWorks = New Button()
         ButtonExport = New Button()
@@ -42,7 +41,15 @@ Partial Class MainForm
         TextSearch = New TextBox()
         LabelShow = New Label()
         ComboShow = New ComboBox()
+        LabelType = New Label()
+        ComboType = New ComboBox()
         LabelCount = New Label()
+        WorkshopRow = New FlowLayoutPanel()
+        LabelWorkshop = New Label()
+        ComboWorkshop = New ComboBox()
+        ButtonWorkshops = New Button()
+        ProgressWorkshops = New ProgressBar()
+        LabelWorkshopStatus = New Label()
         Tabs = New TabControl()
         TabObjects = New TabPage()
         GridObjects = New DecisionGrid()
@@ -116,7 +123,6 @@ Partial Class MainForm
         ActionBar.AutoSizeMode = AutoSizeMode.GrowAndShrink
         ActionBar.Controls.Add(ButtonSave)
         ActionBar.Controls.Add(ButtonClear)
-        ActionBar.Controls.Add(ButtonLoadOrder)
         ActionBar.Controls.Add(ButtonRules)
         ActionBar.Controls.Add(ButtonHowItWorks)
         ActionBar.Controls.Add(ButtonExport)
@@ -149,16 +155,6 @@ Partial Class MainForm
         ButtonClear.Text = "Clear decisions…"
         ToolTips.SetToolTip(ButtonClear, "Set every object, group and folder back to Undecided (the rules decide). Your rules are kept.")
         ButtonClear.UseVisualStyleBackColor = True
-        '
-        'ButtonLoadOrder
-        '
-        ButtonLoadOrder.AutoSize = True
-        ButtonLoadOrder.Name = "ButtonLoadOrder"
-        ButtonLoadOrder.Padding = New Padding(8, 2, 8, 2)
-        ButtonLoadOrder.TabIndex = 1
-        ButtonLoadOrder.Text = "Load order…"
-        ToolTips.SetToolTip(ButtonLoadOrder, "Choose the plugins again and rebuild the lists. Your decisions (saved or not) are kept.")
-        ButtonLoadOrder.UseVisualStyleBackColor = True
         '
         'ButtonRules
         '
@@ -232,11 +228,13 @@ Partial Class MainForm
         LeftLayout.ColumnCount = 1
         LeftLayout.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100.0F))
         LeftLayout.Controls.Add(FilterRow, 0, 0)
-        LeftLayout.Controls.Add(Tabs, 0, 1)
+        LeftLayout.Controls.Add(WorkshopRow, 0, 1)
+        LeftLayout.Controls.Add(Tabs, 0, 2)
         LeftLayout.Dock = DockStyle.Fill
         LeftLayout.Location = New Point(0, 0)
         LeftLayout.Name = "LeftLayout"
-        LeftLayout.RowCount = 2
+        LeftLayout.RowCount = 3
+        LeftLayout.RowStyles.Add(New RowStyle())
         LeftLayout.RowStyles.Add(New RowStyle())
         LeftLayout.RowStyles.Add(New RowStyle(SizeType.Percent, 100.0F))
         LeftLayout.Size = New Size(820, 778)
@@ -250,6 +248,8 @@ Partial Class MainForm
         FilterRow.Controls.Add(TextSearch)
         FilterRow.Controls.Add(LabelShow)
         FilterRow.Controls.Add(ComboShow)
+        FilterRow.Controls.Add(LabelType)
+        FilterRow.Controls.Add(ComboType)
         FilterRow.Controls.Add(LabelCount)
         FilterRow.Dock = DockStyle.Fill
         FilterRow.Name = "FilterRow"
@@ -267,7 +267,7 @@ Partial Class MainForm
         'TextSearch
         '
         TextSearch.Name = "TextSearch"
-        TextSearch.Size = New Size(260, 23)
+        TextSearch.Size = New Size(220, 23)
         TextSearch.TabIndex = 1
         ToolTips.SetToolTip(TextSearch, "Name, EditorID, key (Plugin|ID) or folder. Not case-sensitive.")
         '
@@ -288,6 +288,23 @@ Partial Class MainForm
         ComboShow.TabIndex = 3
         ToolTips.SetToolTip(ComboShow, "Undecided / Decided: your decision on this tab's rows. Yes / No / Review: the result (on Groups and Folders: has objects with that result). With warning: the name suggests a plant, terrain or a building part AND it matters: lowered to Review, or Yes anyway.")
         '
+        'LabelType
+        '
+        LabelType.Anchor = AnchorStyles.Left
+        LabelType.AutoSize = True
+        LabelType.Margin = New Padding(12, 0, 3, 0)
+        LabelType.Name = "LabelType"
+        LabelType.TabIndex = 4
+        LabelType.Text = "Type:"
+        '
+        'ComboType
+        '
+        ComboType.DropDownStyle = ComboBoxStyle.DropDownList
+        ComboType.Name = "ComboType"
+        ComboType.Size = New Size(125, 23)
+        ComboType.TabIndex = 5
+        ToolTips.SetToolTip(ComboType, "The record type of the objects (STAT, CONT, FURN...). On Groups and Folders: the rows that have objects of that type.")
+        '
         'LabelCount
         '
         LabelCount.Anchor = AnchorStyles.Left
@@ -295,7 +312,64 @@ Partial Class MainForm
         LabelCount.ForeColor = SystemColors.GrayText
         LabelCount.Margin = New Padding(12, 0, 3, 0)
         LabelCount.Name = "LabelCount"
-        LabelCount.TabIndex = 4
+        LabelCount.TabIndex = 6
+        '
+        'WorkshopRow
+        '
+        WorkshopRow.AutoSize = True
+        WorkshopRow.AutoSizeMode = AutoSizeMode.GrowAndShrink
+        WorkshopRow.Controls.Add(LabelWorkshop)
+        WorkshopRow.Controls.Add(ComboWorkshop)
+        WorkshopRow.Controls.Add(ButtonWorkshops)
+        WorkshopRow.Controls.Add(ProgressWorkshops)
+        WorkshopRow.Controls.Add(LabelWorkshopStatus)
+        WorkshopRow.Dock = DockStyle.Fill
+        WorkshopRow.Name = "WorkshopRow"
+        WorkshopRow.TabIndex = 1
+        WorkshopRow.WrapContents = False
+        '
+        'LabelWorkshop
+        '
+        LabelWorkshop.Anchor = AnchorStyles.Left
+        LabelWorkshop.AutoSize = True
+        LabelWorkshop.Name = "LabelWorkshop"
+        LabelWorkshop.TabIndex = 0
+        LabelWorkshop.Text = "Workshop:"
+        '
+        'ComboWorkshop
+        '
+        ComboWorkshop.DropDownStyle = ComboBoxStyle.DropDownList
+        ComboWorkshop.Enabled = False
+        ComboWorkshop.Name = "ComboWorkshop"
+        ComboWorkshop.Size = New Size(300, 23)
+        ComboWorkshop.TabIndex = 1
+        ToolTips.SetToolTip(ComboWorkshop, "Only the objects placed inside this workshop's build area, as the game decides it: the area boxes linked to the workbench (or, without boxes, the build radius). " &
+            "What the plugins place — your save (what you built, scrapped or moved) is not seen.")
+        '
+        'ButtonWorkshops
+        '
+        ButtonWorkshops.AutoSize = True
+        ButtonWorkshops.Name = "ButtonWorkshops"
+        ButtonWorkshops.TabIndex = 2
+        ButtonWorkshops.Text = "Filter by workshop..."
+        ButtonWorkshops.UseVisualStyleBackColor = True
+        ToolTips.SetToolTip(ButtonWorkshops, "Reads the placed objects of your load order once (it takes a while) and lists the workshops. Nothing read is kept: only which objects are in each workshop.")
+        '
+        'ProgressWorkshops
+        '
+        ProgressWorkshops.Anchor = AnchorStyles.Left
+        ProgressWorkshops.Name = "ProgressWorkshops"
+        ProgressWorkshops.Size = New Size(140, 16)
+        ProgressWorkshops.TabIndex = 3
+        ProgressWorkshops.Visible = False
+        '
+        'LabelWorkshopStatus
+        '
+        LabelWorkshopStatus.Anchor = AnchorStyles.Left
+        LabelWorkshopStatus.AutoSize = True
+        LabelWorkshopStatus.ForeColor = SystemColors.GrayText
+        LabelWorkshopStatus.Name = "LabelWorkshopStatus"
+        LabelWorkshopStatus.TabIndex = 4
         '
         'Tabs
         '
@@ -314,7 +388,7 @@ Partial Class MainForm
         TabObjects.Padding = New Padding(3)
         TabObjects.TabIndex = 0
         TabObjects.Text = "Objects"
-        TabObjects.ToolTipText = "Every base object a scrap recipe covers, with its result."
+        TabObjects.ToolTipText = "Every base object a recipe covers, with its result."
         TabObjects.UseVisualStyleBackColor = True
         '
         'GridObjects
@@ -339,7 +413,7 @@ Partial Class MainForm
         TabGroups.Padding = New Padding(3)
         TabGroups.TabIndex = 1
         TabGroups.Text = "Groups"
-        TabGroups.ToolTipText = "The scrap recipes: a decision here applies to all their objects."
+        TabGroups.ToolTipText = "The recipes (scrap and build): a decision here applies to all their objects."
         TabGroups.UseVisualStyleBackColor = True
         '
         'GridGroups
@@ -575,7 +649,6 @@ Partial Class MainForm
     Friend WithEvents LayoutMain As TableLayoutPanel
     Friend WithEvents ActionBar As FlowLayoutPanel
     Friend WithEvents ButtonSave As Button
-    Friend WithEvents ButtonLoadOrder As Button
     Friend WithEvents ButtonRules As Button
     Friend WithEvents ButtonHowItWorks As Button
     Friend WithEvents ButtonClear As Button
@@ -589,7 +662,15 @@ Partial Class MainForm
     Friend WithEvents TextSearch As TextBox
     Friend WithEvents LabelShow As Label
     Friend WithEvents ComboShow As ComboBox
+    Friend WithEvents LabelType As Label
+    Friend WithEvents ComboType As ComboBox
     Friend WithEvents LabelCount As Label
+    Friend WithEvents WorkshopRow As FlowLayoutPanel
+    Friend WithEvents LabelWorkshop As Label
+    Friend WithEvents ComboWorkshop As ComboBox
+    Friend WithEvents ButtonWorkshops As Button
+    Friend WithEvents ProgressWorkshops As ProgressBar
+    Friend WithEvents LabelWorkshopStatus As Label
     Friend WithEvents Tabs As TabControl
     Friend WithEvents TabObjects As TabPage
     Friend WithEvents GridObjects As DecisionGrid

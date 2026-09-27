@@ -74,14 +74,16 @@ Namespace Engine
         Friend Const ColReview As String = "Review"
         Friend Const ColOrigin As String = "Origin"
         Friend Const ColRecipe As String = "Recipe"
+        Friend Const ColKind As String = "Kind"
+        Friend Const ColSize As String = "Size"
         Friend Const ColReturns As String = "Returns"
         Friend Const ColFolder As String = "Folder"
         Friend Const ColRuleSays As String = "Rule says"
 
-        Private Shared ReadOnly ObjectColumns As String() = {ColDecision, ColResult, ColDecidedBy, ColName, ColEditorID, ColType, ColKey, ColFolders, ColWarning}
-        Private Shared ReadOnly GroupColumns As String() = {ColDecision, ColName, ColObjects, ColYes, ColNo, ColReview, ColOrigin, ColRecipe, ColReturns}
+        Private Shared ReadOnly ObjectColumns As String() = {ColDecision, ColResult, ColDecidedBy, ColName, ColSize, ColEditorID, ColType, ColKey, ColFolders, ColWarning}
+        Private Shared ReadOnly GroupColumns As String() = {ColDecision, ColName, ColKind, ColObjects, ColYes, ColNo, ColReview, ColOrigin, ColRecipe, ColReturns}
         Private Shared ReadOnly FolderColumns As String() = {ColDecision, ColFolder, ColRuleSays, ColObjects, ColYes, ColNo, ColReview}
-        Private Shared ReadOnly NumericColumns As New HashSet(Of String)(StringComparer.Ordinal) From {ColObjects, ColYes, ColNo, ColReview}
+        Private Shared ReadOnly NumericColumns As New HashSet(Of String)(StringComparer.Ordinal) From {ColObjects, ColYes, ColNo, ColReview, ColSize}
 
         Friend ReadOnly Property Catalog As ScrapCatalog
         Friend ReadOnly Property Decisions As Decisions
@@ -306,11 +308,15 @@ Namespace Engine
             End Select
         End Function
 
-        ''' <summary>The keys of a tab's rows, filtered, searched (case-insensitive, on name, EditorID, key and folders)
-        ''' and sorted by <paramref name="sortColumn"/> (Nothing = by key); ties by key, Ordinal.</summary>
-        Friend Function Rows(tab As ReviewTab, filter As RowFilter, search As String, sortColumn As String, descending As Boolean) As IReadOnlyList(Of String)
+        ''' <summary>The keys of a tab's rows, filtered, searched (case-insensitive, on name, EditorID, key and folders),
+        ''' limited to <paramref name="recordType"/> (Nothing = every type; on Groups and Folders: the rows with an object of
+        ''' that type) and to <paramref name="onlyObjects"/> (object keys, e.g. a workshop's; same rule), and sorted by <paramref name="sortColumn"/> (Nothing = by key); ties by key, Ordinal.</summary>
+        Friend Function Rows(tab As ReviewTab, filter As RowFilter, search As String, sortColumn As String, descending As Boolean,
+                             Optional recordType As String = Nothing, Optional onlyObjects As IReadOnlyDictionary(Of String, Integer) = Nothing) As IReadOnlyList(Of String)
             Dim q = If(search, "").Trim()
-            Dim keys = AllKeys(tab).Where(Function(k) Passes(tab, k, filter) AndAlso (q = "" OrElse Matches(tab, k, q))).ToList()
+            Dim keys = AllKeys(tab).Where(Function(k) Passes(tab, k, filter) AndAlso (q = "" OrElse Matches(tab, k, q)) AndAlso
+                                                      (recordType Is Nothing OrElse HasType(tab, k, recordType)) AndAlso
+                                                      (onlyObjects Is Nothing OrElse MembersOf(tab, k).Any(Function(m) onlyObjects.ContainsKey(m)))).ToList()
             Dim col = If(String.IsNullOrEmpty(sortColumn), ColKey, sortColumn)
             Dim cmp As Comparison(Of String)
             If NumericColumns.Contains(col) Then
@@ -354,6 +360,10 @@ Namespace Engine
             End Select
         End Function
 
+        Private Function HasType(tab As ReviewTab, key As String, recordType As String) As Boolean
+            Return MembersOf(tab, key).Any(Function(m) Catalog.Objects(m).Signature = recordType)
+        End Function
+
         Private Function Matches(tab As ReviewTab, key As String, q As String) As Boolean
             Dim hay As IEnumerable(Of String)
             Select Case tab
@@ -370,6 +380,7 @@ Namespace Engine
         End Function
 
         Private Function Number(tab As ReviewTab, key As String, col As String) As Integer
+            If col = ColSize Then Return LongestSide(Catalog.Objects(key))
             Dim t = If(tab = ReviewTab.Groups, _groupTally(key), _folderTally(key))
             Select Case col
                 Case ColYes : Return t.Yes
@@ -395,6 +406,7 @@ Namespace Engine
                         Case ColName : Return o.Name
                         Case ColEditorID : Return o.EditorID
                         Case ColType : Return o.Signature
+                        Case ColSize : Return SizeText(o)
                         Case ColKey : Return o.Key
                         Case ColFolders : Return String.Join(", ", o.Folders.Distinct(StringComparer.Ordinal))
                         Case ColWarning : Return r.Warning
@@ -403,6 +415,7 @@ Namespace Engine
                     Dim g = _groups(key)
                     Select Case col
                         Case ColName : Return GroupName(g)
+                        Case ColKind : Return KindText(g.Kind)
                         Case ColOrigin : Return g.SourcePlugin
                         Case ColRecipe : Return $"{g.EditorID} ({g.Key})"
                         Case ColKey : Return g.Key
@@ -426,6 +439,24 @@ Namespace Engine
             If g.TargetName <> "" Then Return g.TargetName
             If g.TargetEditorID <> "" Then Return g.TargetEditorID
             Return g.EditorID
+        End Function
+
+        ''' <summary>The bounds as "X × Y × Z" (game units), or "" without bounds.</summary>
+        Friend Shared Function SizeText(o As ScrapObject) As String
+            If Not o.Size.HasValue Then Return ""
+            Dim s = o.Size.Value
+            Return String.Format(Globalization.CultureInfo.InvariantCulture, "{0} × {1} × {2}", s.X, s.Y, s.Z)
+        End Function
+
+        ''' <summary>What the Size column sorts by: the longest side of the bounds (−1 without bounds).</summary>
+        Friend Shared Function LongestSide(o As ScrapObject) As Integer
+            If Not o.Size.HasValue Then Return -1
+            Dim s = o.Size.Value
+            Return Math.Max(s.X, Math.Max(s.Y, s.Z))
+        End Function
+
+        Friend Shared Function KindText(k As RecipeKind) As String
+            Return If(k = RecipeKind.Scrap, "Scrap", "Build")
         End Function
 
         Friend Shared Function VerdictText(v As Verdict) As String
@@ -459,6 +490,7 @@ Namespace Engine
             Dim sb As New StringBuilder
             sb.AppendLine($"{If(o.Name <> "", o.Name, o.EditorID)}  —  {o.Signature} {o.EditorID}  ({o.Key})")
             sb.AppendLine($"Result: {VerdictText(r.Verdict)}   ·   decided by: {DecidedByText(r)}")
+            If o.Size.HasValue Then sb.AppendLine($"Size: {SizeText(o)} game units (its bounds)")
             sb.AppendLine()
             sb.AppendLine("How the result came out (the first level that decides wins):")
 
@@ -469,9 +501,9 @@ Namespace Engine
                 sb.AppendLine("  1. Your decision on this object: none.")
                 Dim groupSteps = r.Steps.Where(Function(s) s.Kind = DecidedBy.GroupDecision).ToList()
                 If groupSteps.Count = 0 Then
-                    sb.AppendLine($"  2. Groups (scrap recipes) that contain it: {o.Recipes.Count}, none decided by you.")
+                    sb.AppendLine($"  2. Groups (recipes) that contain it: {o.Recipes.Count}, none decided by you.")
                 Else
-                    sb.AppendLine($"  2. Groups (scrap recipes) that contain it: {o.Recipes.Count}; your decisions on them (No wins over Yes):")
+                    sb.AppendLine($"  2. Groups (recipes) that contain it: {o.Recipes.Count}; your decisions on them (No wins over Yes):")
                     For Each s In groupSteps
                         Dim g As ScrapRecipe = Nothing
                         Dim label = If(_groups.TryGetValue(s.Subject, g), $"{GroupName(g)} [{g.EditorID}]", "")
@@ -535,15 +567,21 @@ Namespace Engine
             Dim t = _groupTally(key)
             Dim d = Decision(ReviewTab.Groups, key)
             Dim sb As New StringBuilder
-            sb.AppendLine($"Group {GroupName(g)}  —  scrap recipe {g.EditorID} ({g.Key}), from {g.SourcePlugin}")
+            Dim build = g.Kind = RecipeKind.Build
+            sb.AppendLine($"Group {GroupName(g)}  —  {If(build, "build", "scrap")} recipe {g.EditorID} ({g.Key}), from {g.SourcePlugin}")
             If Not g.HasCreatedObject Then
                 sb.AppendLine("It names no object to scrap, so it covers nothing.")
             ElseIf g.TargetKey = "" Then
                 sb.AppendLine("The object it names is not loaded, so it covers nothing.")
+            ElseIf build Then
+                sb.AppendLine($"Builds: {g.TargetSignature} {g.TargetEditorID} ({g.TargetKey})" & If(g.TargetSignature = "FLST", " — a form list; the objects in it that can stand in a settlement", "") &
+                              ". What the workshop can build, it can also scrap.")
             Else
                 sb.AppendLine($"Scraps: {g.TargetSignature} {g.TargetEditorID} ({g.TargetKey})" & If(g.TargetSignature = "FLST", " — a form list, every object in it", ""))
             End If
-            If g.Components.Count > 0 Then sb.AppendLine("Returns: " & CellText(ReviewTab.Groups, key, ColReturns))
+            If g.Components.Count > 0 Then
+                sb.AppendLine(If(build, "Costs (scrapping returns it, unless a scrap recipe also covers the object): ", "Returns: ") & CellText(ReviewTab.Groups, key, ColReturns))
+            End If
             sb.AppendLine()
             sb.AppendLine($"Your decision on this group: {If(d.HasValue, VerdictText(d.Value), "none")}.")
             sb.AppendLine($"Its {t.Objects} objects: {t.Yes} Yes, {t.No} No, {t.Review} Review.")

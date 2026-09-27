@@ -14,8 +14,17 @@ Namespace Engine
         Friend Property Name As String = ""
     End Class
 
-    ''' <summary>A scrap recipe (group): a COBJ in the workshop's scrap category.</summary>
+    ''' <summary>The engine's two recipe maps (Fallout4.exe 1.11.240, builder 0x1403A5B50): a COBJ whose category holds
+    ''' <c>WorkshopScrappableKeyword</c> goes to map A (0x142EDF220, scrap recipes); every other COBJ goes to map B
+    ''' (0x142EDF250, build recipes) for its non-inventory items. <c>GetScrapComponents</c> (0x1403A7E30) looks in A, then B.</summary>
+    Friend Enum RecipeKind
+        Scrap
+        Build
+    End Enum
+
+    ''' <summary>A recipe (group): a scrap recipe, or a build recipe whose object the workshop can also scrap.</summary>
     Friend NotInheritable Class ScrapRecipe
+        Friend Property Kind As RecipeKind
         Friend Property Key As String
         Friend Property FormID As UInteger
         Friend Property EditorID As String
@@ -47,6 +56,9 @@ Namespace Engine
         ''' to the preview by <c>ShapeMaterialOverrides.ApplyModelMaterial</c>.</summary>
         Friend Property MaterialSwapFormID As UInteger
         Friend Property ColorRemapIndex As Single?
+        ''' <summary>The size of the object's bounds (OBND max − min, game units: X, Y, Z), or Nothing when the record
+        ''' has no OBND.</summary>
+        Friend Property Size As (X As Integer, Y As Integer, Z As Integer)?
         ''' <summary>The folders that decide the object: its own model folder, or its parts' for a static collection
         ''' (one entry per part, repeats kept).</summary>
         Friend Property Folders As New List(Of String)
@@ -55,16 +67,43 @@ Namespace Engine
     End Class
 
     ''' <summary>Every scrappable base object of the loaded plugins, read once after the load order.
-    ''' <para>A scrap recipe = a COBJ whose category (FNAM) holds <c>WorkshopRecipeFilterScrap</c> (Fallout4.esm 0x106D8F,
-    ''' checked by EditorID at build time). Its created object (CNAM) is expanded with <see cref="MemberExpander"/>; the
-    ''' components are FVPA. Records are read through the library's schema (<see cref="CanonBridge.Tree"/>,
-    ''' <see cref="CanonRecords.Flst"/>), which turns every reference into a load-order FormID. Any record type counts as
-    ''' a member, part or target (the prototype only loaded some types; measured: same result).</para></summary>
+    ''' <para>The engine's recipe table (<see cref="RecipeKind"/>): every COBJ not flagged Deleted, its created object (CNAM)
+    ''' expanded with <see cref="MemberExpander"/>. A COBJ whose category (FNAM) holds <c>WorkshopRecipeFilterScrap</c>
+    ''' (Fallout4.esm 0x106D8F = DefaultObject WorkshopScrappableKeyword, checked by EditorID at build time) is a scrap
+    ''' recipe and covers every member; any other COBJ (also one without FNAM) is a build recipe and covers only the members
+    ''' <see cref="IsBuildScrappableType"/> accepts; a build recipe that covers none is not in the engine's map and is left
+    ''' out. The components are FVPA. Records are read through the library's schema (<see cref="CanonBridge.Tree"/>,
+    ''' <see cref="CanonRecords.Flst"/>), which turns every reference into a load-order FormID.</para></summary>
     Friend NotInheritable Class ScrapCatalog
 
         Friend Const ScrapCategoryEditorID As String = "WorkshopRecipeFilterScrap"
         Friend Const ScrapCategoryPlugin As String = "Fallout4.esm"
         Friend Const ScrapCategoryObjectID As UInteger = &H106D8FUI
+
+        ''' <summary>The reference-base types for which Fallout4.exe's 0x14030E570 (1.11.240, jump table at 0x14030E5D5,
+        ''' FormType numbers from F4SE GameForms.h) answers False, so the builder puts them in the build-recipe map.
+        ''' Left out: the types it answers True for (SCRL, ARMO, BOOK, INGR, MISC, WEAP, AMMO, KEYM, ALCH, NOTE, SLGM, LVLI,
+        ''' COBJ); PROJ, decided by bit 6 of [+0xC0]; forms that cannot be a reference's base (OMOD and the rest); and LIGH,
+        ''' decided by bit 1 of [+0x154], a runtime field whose source in the record is NOT FOUND (31 workshop lights in the
+        ''' vanilla + Scrap Everything corpus, 26-sep).</summary>
+        Private Shared ReadOnly BuildScrappableTypes As New HashSet(Of String)(StringComparer.Ordinal) From {
+            "ACTI", "TACT", "CONT", "DOOR", "STAT", "SCOL", "MSTT", "GRAS", "TREE", "FLOR", "FURN", "NPC_", "IDLM", "HAZD",
+            "BNDS", "TERM"}
+
+        Friend Shared Function IsBuildScrappableType(signature As String) As Boolean
+            Return BuildScrappableTypes.Contains(signature)
+        End Function
+
+        ''' <summary>Record type → how many objects of the catalog have it, sorted by type (Ordinal).</summary>
+        Friend Function TypeCounts() As SortedDictionary(Of String, Integer)
+            Dim out As New SortedDictionary(Of String, Integer)(StringComparer.Ordinal)
+            For Each o In Objects.Values
+                Dim n = 0
+                out.TryGetValue(o.Signature, n)
+                out(o.Signature) = n + 1
+            Next
+            Return out
+        End Function
 
         Friend ReadOnly Property Recipes As New List(Of ScrapRecipe)
         Friend ReadOnly Property Objects As New Dictionary(Of String, ScrapObject)(StringComparer.Ordinal)
@@ -98,17 +137,24 @@ Namespace Engine
                 Dim tree = CanonBridge.Tree(recipeRec, pm)
                 If tree Is Nothing Then Continue For
                 Dim fnam = tree.BySignature("FNAM")
-                If fnam Is Nothing Then Continue For
-                c.CobjWithTreeFnam += 1
-                If Not Values(fnam, "Keyword").Contains(scrapKw) Then Continue For
+                If fnam IsNot Nothing Then c.CobjWithTreeFnam += 1
+                If recipeRec.Header.IsDeleted Then Continue For
+                Dim kind = If(fnam IsNot Nothing AndAlso Values(fnam, "Keyword").Contains(scrapKw), RecipeKind.Scrap, RecipeKind.Build)
+
+                Dim cnam = tree.BySignature("CNAM")
+                Dim target = If(cnam Is Nothing, 0UI, Values(cnam, "Created Object").FirstOrDefault())
+                Dim members = If(target = 0UI, New List(Of UInteger), MemberExpander.Expand(target, flstMembers, exists).ToList())
+                If kind = RecipeKind.Build Then
+                    members = members.Where(Function(m) IsBuildScrappableType(pm.GetRecord(m).Header.Signature)).ToList()
+                    If members.Count = 0 Then Continue For
+                End If
 
                 Dim recipe As New ScrapRecipe With {
+                    .Kind = kind,
                     .FormID = recipeRec.Header.FormID,
                     .Key = KeyOf(pm, recipeRec.Header.FormID),
                     .EditorID = recipeRec.EditorID,
                     .SourcePlugin = recipeRec.SourcePluginName}
-                Dim cnam = tree.BySignature("CNAM")
-                Dim target = If(cnam Is Nothing, 0UI, Values(cnam, "Created Object").FirstOrDefault())
                 recipe.HasCreatedObject = target <> 0UI
                 recipe.TargetFormID = target
                 Dim targetRec = If(target = 0UI, Nothing, pm.GetRecord(target))
@@ -130,13 +176,11 @@ Namespace Engine
                     Next
                 End If
 
-                If recipe.HasCreatedObject Then
-                    For Each m In MemberExpander.Expand(target, flstMembers, exists)
-                        Dim obj = c.GetOrAddObject(pm, m)
-                        If Not obj.Recipes.Contains(recipe.Key) Then obj.Recipes.Add(recipe.Key)
-                        recipe.Members.Add(obj.Key)
-                    Next
-                End If
+                For Each m In members
+                    Dim obj = c.GetOrAddObject(pm, m)
+                    If Not obj.Recipes.Contains(recipe.Key) Then obj.Recipes.Add(recipe.Key)
+                    recipe.Members.Add(obj.Key)
+                Next
                 c.Recipes.Add(recipe)
             Next
 
@@ -161,6 +205,7 @@ Namespace Engine
                 .Name = FullName(pm, rec), .HasModel = modl.HasValue,
                 .Model = If(modl.HasValue, modl.Value.AsStringGeneral, "")}
             o.Folders.AddRange(FoldersOf(pm, rec))
+            o.Size = BoundsSize(rec)
             If rec.GetSubrecord("MODS").HasValue OrElse rec.GetSubrecord("MODC").HasValue Then
                 ' Through the schema tree: it turns MODS into a load-order FormID. The FIRST Model struct is the record's
                 ' own (the only MODS/MODC of the base object types a scrap recipe covers).
@@ -174,6 +219,15 @@ Namespace Engine
             End If
             Objects(key) = o
             Return o
+        End Function
+
+        ''' <summary>OBND as the FO4 schema declares it: Min X, Y, Z then Max X, Y, Z, six signed 16-bit integers.</summary>
+        Private Shared Function BoundsSize(rec As PluginRecord) As (X As Integer, Y As Integer, Z As Integer)?
+            Dim obnd = rec.GetSubrecord("OBND")
+            If Not obnd.HasValue OrElse obnd.Value.Data Is Nothing OrElse obnd.Value.Data.Length < 12 Then Return Nothing
+            Dim d = obnd.Value.Data
+            Dim v = Function(i As Integer) CInt(BitConverter.ToInt16(d, i * 2))
+            Return (v(3) - v(0), v(4) - v(1), v(5) - v(2))
         End Function
 
         ''' <summary>The folders that decide an object (<see cref="ModelFolder"/>).</summary>

@@ -39,10 +39,187 @@ Namespace UI
                 SetupGrid(tb)
             Next
             _session = New ReviewSession(boot.Catalog, boot.Book, boot.Decisions)
+            FillTypes()
+            FillWorkshops()
             _loadOrderDiffs = _boot.SelectionDifferences()
             RefreshAllRows()
             UpdateStatus()
         End Sub
+
+        Private NotInheritable Class TypeItem
+            Friend ReadOnly Property Signature As String
+            Private ReadOnly _text As String
+            Friend Sub New(signature As String, text As String)
+                Me.Signature = signature
+                _text = text
+            End Sub
+            Public Overrides Function ToString() As String
+                Return _text
+            End Function
+        End Class
+
+        ''' <summary>Fills Type with the record types of the catalog (and how many objects each has), keeping the chosen type
+        ''' when the new catalog still has it. Fired changes are ignored: the caller refreshes the rows.</summary>
+        Private Sub FillTypes()
+            Dim keep = SelectedType
+            _refreshing = True
+            Try
+                ComboType.Items.Clear()
+                ComboType.Items.Add(New TypeItem(Nothing, "All types"))
+                For Each kv In _session.Catalog.TypeCounts()
+                    ComboType.Items.Add(New TypeItem(kv.Key, $"{kv.Key} ({kv.Value:N0})"))
+                Next
+                Dim i = ComboType.Items.Cast(Of TypeItem)().ToList().FindIndex(Function(t) t.Signature = keep)
+                ComboType.SelectedIndex = Math.Max(0, i)
+            Finally
+                _refreshing = False
+            End Try
+        End Sub
+
+        ' ============================================================================================ workshops
+
+        Private _workshops As WorkshopAreas
+        Private _scanCancel As Threading.CancellationTokenSource
+
+        Private NotInheritable Class WorkshopItem
+            Friend ReadOnly Property Area As WorkshopArea
+            Friend Sub New(area As WorkshopArea)
+                Me.Area = area
+            End Sub
+            Public Overrides Function ToString() As String
+                If Area Is Nothing Then Return "All objects (no workshop filter)"
+                Return $"{Area.Name} — {Area.Objects.Count:N0} objects"
+            End Function
+        End Class
+
+        ''' <summary>The workshop chosen, or Nothing (no workshop filter).</summary>
+        Friend ReadOnly Property SelectedWorkshop As WorkshopArea
+            Get
+                Return TryCast(ComboWorkshop.SelectedItem, WorkshopItem)?.Area
+            End Get
+        End Property
+
+        ''' <summary>The last scan's result (the UI gate reads it).</summary>
+        Friend ReadOnly Property Workshops As WorkshopAreas
+            Get
+                Return _workshops
+            End Get
+        End Property
+
+        Friend Sub SelectWorkshop(key As String)
+            Dim i = ComboWorkshop.Items.Cast(Of WorkshopItem)().ToList().FindIndex(Function(w) If(w.Area?.Key, Nothing) = key)
+            If i < 0 Then Throw New ArgumentException($"'{key}' is not a scanned workshop.", NameOf(key))
+            ComboWorkshop.SelectedIndex = i
+        End Sub
+
+        Private Sub ButtonWorkshops_Click(sender As Object, e As EventArgs) Handles ButtonWorkshops.Click
+            If _scanCancel IsNot Nothing Then
+                _scanCancel.Cancel()
+                Return
+            End If
+            StartWorkshopScan()
+        End Sub
+
+        ''' <summary>Reads the placed objects once, off the UI thread, and fills Workshop. Returns the task (the UI gate
+        ''' waits on it by pumping messages).</summary>
+        Friend Function StartWorkshopScan() As Task
+            _scanCancel = New Threading.CancellationTokenSource()
+            Dim token = _scanCancel.Token
+            ButtonWorkshops.Text = "Cancel"
+            ProgressWorkshops.Value = 0
+            ProgressWorkshops.Visible = True
+            LabelWorkshopStatus.Text = "Reading the load order…"
+            Dim pm = _boot.Plugins, data = _boot.DataDir, cat = _session.Catalog
+            Dim report = Sub(p As WorkshopAreas.ScanProgress)
+                             If IsDisposed Then Return
+                             BeginInvoke(Sub()
+                                             If IsDisposed OrElse _scanCancel Is Nothing Then Return
+                                             ProgressWorkshops.Value = CInt(Math.Round(((p.Phase - 1) + p.Fraction) * 50))
+                                             LabelWorkshopStatus.Text = If(p.Phase = 1, "Finding the workshops", "Finding the objects inside") & $"… {p.Plugin}"
+                                         End Sub)
+                         End Sub
+            Dim work = Task.Run(Function() WorkshopAreas.Scan(pm, data, cat, report, token))
+            Return work.ContinueWith(Sub(t) EndWorkshopScan(t), TaskScheduler.FromCurrentSynchronizationContext())
+        End Function
+
+        Private Sub EndWorkshopScan(t As Task(Of WorkshopAreas))
+            _scanCancel?.Dispose()
+            _scanCancel = Nothing
+            If IsDisposed Then Return
+            ButtonWorkshops.Text = "Filter by workshop..."
+            ProgressWorkshops.Visible = False
+            If t.IsCanceled OrElse (t.IsFaulted AndAlso TypeOf t.Exception.GetBaseException() Is OperationCanceledException) Then
+                LabelWorkshopStatus.Text = "Cancelled."
+                Return
+            End If
+            If t.IsFaulted Then
+                LabelWorkshopStatus.Text = ""
+                AppDialogs.Warn(Me, AppTitle & " — workshops", "The workshops could not be read:" & vbCr & t.Exception.GetBaseException().Message)
+                Return
+            End If
+            _workshops = t.Result
+            FillWorkshops()
+            LabelWorkshopStatus.Text = WorkshopStatus()
+        End Sub
+
+        ''' <summary>The status next to Workshop: what "inside" means for the chosen one, or the scan's summary.</summary>
+        Private Function WorkshopStatus() As String
+            Dim a = SelectedWorkshop
+            If a IsNot Nothing Then Return AreaText(a)
+            If _workshops Is Nothing Then Return ""
+            Return $"{_workshops.Workshops.Count} workshops, read in {_workshops.Milliseconds / 1000.0:0.0} s. Pick one."
+        End Function
+
+        Private Sub FillWorkshops()
+            Dim keep = SelectedWorkshop?.Key
+            _refreshing = True
+            Try
+                ComboWorkshop.Items.Clear()
+                ComboWorkshop.Items.Add(New WorkshopItem(Nothing))
+                If _workshops IsNot Nothing Then
+                    For Each a In _workshops.Workshops
+                        ComboWorkshop.Items.Add(New WorkshopItem(a))
+                    Next
+                End If
+                Dim i = ComboWorkshop.Items.Cast(Of WorkshopItem)().ToList().FindIndex(Function(w) w.Area IsNot Nothing AndAlso w.Area.Key = keep)
+                ComboWorkshop.SelectedIndex = Math.Max(0, i)
+                ComboWorkshop.Enabled = _workshops IsNot Nothing
+            Finally
+                _refreshing = False
+            End Try
+        End Sub
+
+        Private Sub ComboWorkshop_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboWorkshop.SelectedIndexChanged
+            If _session Is Nothing OrElse _refreshing Then Return
+            LabelWorkshopStatus.Text = WorkshopStatus()
+            RefreshAllRows()
+            ShowCurrent()
+        End Sub
+
+        ''' <summary>What "inside" means for this workshop, in the user's words.</summary>
+        Friend Shared Function AreaText(a As WorkshopArea) As String
+            Dim refs = a.Objects.Values.Sum()
+            Dim how As String
+            If a.UsesPrimitives Then
+                how = $"{a.Boxes.Count} area box{If(a.Boxes.Count = 1, "", "es")}"
+                If a.UnsupportedShapes > 0 Then how &= $" ({a.UnsupportedShapes} area shape(s) of another kind not supported)"
+            Else
+                how = a.RadiusSource
+            End If
+            Return $"{how} · {refs:N0} placed references of {a.Objects.Count:N0} objects"
+        End Function
+
+        ''' <summary>The record type chosen in Type, or Nothing for all types.</summary>
+        Friend Property SelectedType As String
+            Get
+                Return TryCast(ComboType.SelectedItem, TypeItem)?.Signature
+            End Get
+            Set(value As String)
+                Dim i = ComboType.Items.Cast(Of TypeItem)().ToList().FindIndex(Function(t) t.Signature = value)
+                If i < 0 Then Throw New ArgumentException($"'{value}' is not a type of the loaded objects.", NameOf(value))
+                ComboType.SelectedIndex = i
+            End Set
+        End Property
 
         ''' <summary>The session the window shows (the UI gate reads it).</summary>
         Friend ReadOnly Property Session As ReviewSession
@@ -83,6 +260,7 @@ Namespace UI
                         Return
                 End Select
             End If
+            _scanCancel?.Cancel()
             TearDownPreview()
             Dim f = _boot.Settings
             f.MainWindowMaximized = WindowState = FormWindowState.Maximized
@@ -157,9 +335,10 @@ Namespace UI
                 col.Name = colName
                 col.HeaderText = colName
                 col.SortMode = DataGridViewColumnSortMode.Programmatic
-                If colName = ReviewSession.ColObjects OrElse colName = ReviewSession.ColYes OrElse colName = ReviewSession.ColNo OrElse colName = ReviewSession.ColReview Then
+                If colName = ReviewSession.ColObjects OrElse colName = ReviewSession.ColYes OrElse colName = ReviewSession.ColNo OrElse colName = ReviewSession.ColReview OrElse colName = ReviewSession.ColSize Then
                     col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight
                 End If
+                If colName = ReviewSession.ColSize Then col.ToolTipText = "The object's bounds (OBND) in game units: X × Y × Z. Sorts by the longest side."
                 grid.Columns.Add(col)
             Next
             grid.Columns(grid.Columns.Count - 1).AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
@@ -168,8 +347,9 @@ Namespace UI
 
         Private Shared Function ColumnWidth(tab As ReviewTab, name As String) As Integer
             Select Case name
-                Case ReviewSession.ColResult, ReviewSession.ColType, ReviewSession.ColObjects, ReviewSession.ColYes, ReviewSession.ColNo, ReviewSession.ColReview : Return 62
+                Case ReviewSession.ColResult, ReviewSession.ColType, ReviewSession.ColKind, ReviewSession.ColObjects, ReviewSession.ColYes, ReviewSession.ColNo, ReviewSession.ColReview : Return 62
                 Case ReviewSession.ColDecidedBy : Return 150
+                Case ReviewSession.ColSize : Return 110
                 Case ReviewSession.ColName : Return If(tab = ReviewTab.Groups, 220, 180)
                 Case ReviewSession.ColEditorID : Return 200
                 Case ReviewSession.ColKey : Return 180
@@ -206,16 +386,24 @@ Namespace UI
             Return _rows(tab)
         End Function
 
-        ''' <summary>Re-reads the rows of a tab from the session, keeping the selection and the current row BY KEY.</summary>
+        ''' <summary>Re-reads the rows of a tab from the session, keeping the selection, the current row and the scroll
+        ''' position: the row that was at the top stays at the top, by key; when it left the list (a filter no longer takes
+        ''' it), the first row after it that is still there takes its place, so the rest of the list does not move. The
+        ''' horizontal scroll and the current column do not move either.</summary>
         Private Sub RefreshRows(tab As ReviewTab)
             Dim grid = GridOf(tab)
             Dim hadRows = _rows.ContainsKey(tab)
             Dim sel = If(hadRows, New HashSet(Of String)(SelectedKeys(tab), StringComparer.Ordinal), New HashSet(Of String)(StringComparer.Ordinal))
             Dim cur = If(hadRows, CurrentKey(tab), Nothing)
+            Dim curCol = If(grid.CurrentCell Is Nothing, 1, grid.CurrentCell.ColumnIndex)
+            Dim topIndex = If(hadRows AndAlso grid.RowCount > 0, TopRow(tab), 0)
+            Dim oldRows = If(hadRows, _rows(tab), Nothing)
+            Dim hScroll = grid.HorizontalScrollingOffset
             Dim s = _sort(tab)
             _refreshing = True
             Try
-                _rows(tab) = _session.Rows(tab, CType(ComboShow.SelectedIndex, RowFilter), TextSearch.Text, s.Column, s.Descending)
+                _rows(tab) = _session.Rows(tab, CType(ComboShow.SelectedIndex, RowFilter), TextSearch.Text, s.Column, s.Descending, SelectedType,
+                                           SelectedWorkshop?.Objects)
                 grid.RowCount = 0
                 grid.RowCount = _rows(tab).Count
                 Dim index As New Dictionary(Of String, Integer)(StringComparer.Ordinal)
@@ -224,7 +412,7 @@ Namespace UI
                 Next
                 Dim curIndex As Integer
                 If cur IsNot Nothing AndAlso index.TryGetValue(cur, curIndex) Then
-                    grid.CurrentCell = grid.Rows(curIndex).Cells(1)
+                    grid.CurrentCell = grid.Rows(curIndex).Cells(Math.Min(curCol, grid.ColumnCount - 1))
                 End If
                 If hadRows Then
                     grid.ClearSelection()
@@ -233,12 +421,46 @@ Namespace UI
                         If index.TryGetValue(k, i) Then grid.Rows(i).Selected = True
                     Next
                 End If
+                _tops(tab) = If(grid.RowCount > 0, AnchorRow(oldRows, topIndex, index, grid.RowCount), 0)
+                If grid.RowCount > 0 AndAlso grid.Visible Then
+                    grid.FirstDisplayedScrollingRowIndex = _tops(tab)
+                    grid.HorizontalScrollingOffset = hScroll
+                End If
                 grid.Invalidate()
             Finally
                 _refreshing = False
             End Try
             If tab = CurrentTab Then UpdateCount()
         End Sub
+
+        ''' <summary>Top row of each tab's grid. A grid on a hidden tab page does not report its scroll (−1), so the last
+        ''' known top is kept here and applied when the page shows again.</summary>
+        Private ReadOnly _tops As New Dictionary(Of ReviewTab, Integer)
+
+        Private Function TopRow(tab As ReviewTab) As Integer
+            Dim grid = GridOf(tab)
+            If grid.Visible AndAlso grid.FirstDisplayedScrollingRowIndex >= 0 Then Return grid.FirstDisplayedScrollingRowIndex
+            Dim t = 0
+            _tops.TryGetValue(tab, t)
+            Return t
+        End Function
+
+        Private Sub Grid_Scroll(sender As Object, e As ScrollEventArgs) Handles GridObjects.Scroll, GridGroups.Scroll, GridFolders.Scroll
+            Dim grid = DirectCast(sender, DataGridView)
+            If grid.FirstDisplayedScrollingRowIndex >= 0 Then _tops(TabOf(sender)) = grid.FirstDisplayedScrollingRowIndex
+        End Sub
+
+        ''' <summary>The row to put at the top after a refresh: the old top row if it is still listed, else the first old row
+        ''' after it that is, else (everything after it left) the last row.</summary>
+        Friend Shared Function AnchorRow(oldRows As IReadOnlyList(Of String), oldTop As Integer, newIndex As Dictionary(Of String, Integer), newCount As Integer) As Integer
+            If oldRows IsNot Nothing Then
+                For i = oldTop To oldRows.Count - 1
+                    Dim n As Integer
+                    If newIndex.TryGetValue(oldRows(i), n) Then Return n
+                Next
+            End If
+            Return Math.Min(oldTop, newCount - 1)
+        End Function
 
         Private Sub RefreshAllRows()
             For Each tb As ReviewTab In {ReviewTab.Objects, ReviewTab.Groups, ReviewTab.Folders}
@@ -346,6 +568,9 @@ Namespace UI
         End Sub
 
         Private Sub Tabs_SelectedIndexChanged(sender As Object, e As EventArgs) Handles Tabs.SelectedIndexChanged
+            Dim grid = GridOf(CurrentTab)
+            Dim t = 0
+            If grid.RowCount > 0 AndAlso _tops.TryGetValue(CurrentTab, t) Then grid.FirstDisplayedScrollingRowIndex = Math.Min(t, grid.RowCount - 1)
             UpdateCount()
             ShowCurrent()
         End Sub
@@ -361,16 +586,17 @@ Namespace UI
             ShowCurrent()
         End Sub
 
-        Private Sub ComboShow_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboShow.SelectedIndexChanged
-            If _session Is Nothing Then Return
+        Private Sub ComboShow_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ComboShow.SelectedIndexChanged, ComboType.SelectedIndexChanged
+            If _session Is Nothing OrElse _refreshing Then Return
             RefreshAllRows()
             ShowCurrent()
         End Sub
 
-        ''' <summary>Shows a tab and its filter/search state as the UI gate asks (and as the user would set them).</summary>
-        Friend Sub ShowTab(tab As ReviewTab, filter As RowFilter, search As String)
+        ''' <summary>Shows a tab and its filter/type/search state as the UI gate asks (and as the user would set them).</summary>
+        Friend Sub ShowTab(tab As ReviewTab, filter As RowFilter, search As String, Optional recordType As String = Nothing)
             Tabs.SelectedIndex = CInt(tab)
             ComboShow.SelectedIndex = CInt(filter)
+            SelectedType = recordType
             SearchTimer.Stop()
             TextSearch.Text = search
             SearchTimer.Stop()
@@ -392,8 +618,11 @@ Namespace UI
                     End If
                 Next
                 If first >= 0 Then
-                    grid.CurrentCell = grid.Rows(first).Cells(1)
+                    Dim hScroll = grid.HorizontalScrollingOffset
+                    Dim curCol = If(grid.CurrentCell Is Nothing, 1, grid.CurrentCell.ColumnIndex)
+                    grid.CurrentCell = grid.Rows(first).Cells(Math.Min(curCol, grid.ColumnCount - 1))
                     If grid.Rows(first).Displayed = False Then grid.FirstDisplayedScrollingRowIndex = first
+                    grid.HorizontalScrollingOffset = hScroll
                 End If
                 grid.ClearSelection()
                 For i = 0 To _rows(tab).Count - 1
@@ -472,6 +701,8 @@ Namespace UI
         Private Sub JumpToObject(key As String)
             If Not _rows(ReviewTab.Objects).Contains(key) Then
                 ComboShow.SelectedIndex = 0
+                SelectedType = Nothing
+                If ComboWorkshop.Items.Count > 0 Then ComboWorkshop.SelectedIndex = 0
                 SearchTimer.Stop()
                 TextSearch.Text = ""
                 SearchTimer.Stop()
@@ -704,41 +935,6 @@ Namespace UI
             ShowCurrent()
         End Sub
 
-        ''' <summary>Load order… (rev-36/rev-41): empty the viewer, reopen the load-order dialog; on OK build the new catalog
-        ''' (a transaction in <see cref="AppBootstrap.UsePlugins"/>) and rebuild the session on the SAME decisions object
-        ''' (unsaved changes and the unsaved mark kept). When the new load order is not taken (dialog cancelled or failed,
-        ''' catalog rejected) the file dictionary is filled again for the plugins still in use before anything is drawn.</summary>
-        Private Sub ButtonLoadOrder_Click(sender As Object, e As EventArgs) Handles ButtonLoadOrder.Click
-            PreviewTimer.Stop()
-            If _preview IsNot Nothing Then ShowPreviewMessage("Loading…")
-            Dim accepted = False
-            Try
-                Using pre As New SafeScrapPreflight(_boot)
-                    If pre.ShowDialog(Me) = DialogResult.OK Then
-                        Try
-                            _boot.UsePlugins(pre.LoadedPluginManager)
-                            accepted = True
-                        Catch ex As ScrapCategoryException
-                            AppDialogs.Warn(Me, AppTitle & " — load order", ex.Message & vbCr & vbCr & "The previous load order stays in use.")
-                        End Try
-                    End If
-                End Using
-            Finally
-                If Not accepted Then
-                    Using New WaitCursor()
-                        _boot.FillFiles(_boot.Plugins)
-                    End Using
-                End If
-            End Try
-            If accepted Then
-                _session = New ReviewSession(_boot.Catalog, _boot.Book, _boot.Decisions, _session.Dirty)
-                _rows.Clear()
-                _loadOrderDiffs = _boot.SelectionDifferences()
-                RefreshAllRows()
-                UpdateStatus()
-            End If
-            ShowCurrent()
-        End Sub
 
     End Class
 

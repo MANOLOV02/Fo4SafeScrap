@@ -6,7 +6,7 @@ Imports System.Text.Json
 
 Namespace Engine
 
-    ''' <summary>The user's decisions: Yes or No per object, per group (scrap recipe) and per model folder. A missing
+    ''' <summary>The user's decisions: Yes or No per object, per group (recipe) and per model folder. A missing
     ''' entry is "undecided" — the next rule down decides. Objects and groups are keyed by their form identifier
     ''' (<c>Plugin|XXXXXX</c>, <see cref="FormIdentifiers"/>), folders by the folder text, so the decisions survive any
     ''' load-order change.</summary>

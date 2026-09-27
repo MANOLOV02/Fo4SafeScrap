@@ -30,7 +30,7 @@ Partial Class RulesDialog
 
     Private ReadOnly _boot As AppBootstrap
     Private ReadOnly _objectFolders As List(Of List(Of String))
-    Private ReadOnly _objectTypes As Dictionary(Of String, Integer)
+    Private ReadOnly _objectTypes As SortedDictionary(Of String, Integer)
     Private ReadOnly _tables As New List(Of KeyedTable)
     ''' <summary>The app's rules plus the difference being edited (Keep mine / Use the app's replace it).</summary>
     Private _work As RuleBook
@@ -45,7 +45,7 @@ Partial Class RulesDialog
         _boot = boot
         _work = boot.Book
         _objectFolders = catalog.Objects.Values.Select(Function(o) o.Folders.Distinct(StringComparer.Ordinal).ToList()).ToList()
-        _objectTypes = catalog.Objects.Values.GroupBy(Function(o) o.Signature).ToDictionary(Function(g) g.Key, Function(g) g.Count(), StringComparer.Ordinal)
+        _objectTypes = catalog.TypeCounts()
         InitializeComponent()
         ColCategory.Items.AddRange(_work.App.Warnings.Select(Function(c) CObj(c.Name)).ToArray())
         _tables.Add(New KeyedTable With {
@@ -79,9 +79,18 @@ Partial Class RulesDialog
 
     ' ============================================================================================ rows
 
+    ''' <summary>The Type list: the record types of the loaded objects, plus the type of any rule the app or the user
+    ''' has (a rule for a type not loaded now must still show; it decides 0 objects).</summary>
+    Friend Function TypeChoices() As List(Of String)
+        Return _objectTypes.Keys.Concat(_work.App.Types.Select(Function(r) r.Key)).Concat(_work.Effective.Types.Select(Function(r) r.Key)).
+            Distinct(StringComparer.Ordinal).OrderBy(Function(s) s, StringComparer.Ordinal).ToList()
+    End Function
+
     Private Sub LoadRows()
         _loading = True
         Try
+            ColType.Items.Clear()
+            ColType.Items.AddRange(TypeChoices().Select(Function(s) CObj(s)).ToArray())
             For Each t In _tables
                 t.Grid.Rows.Clear()
                 For Each r In EffectiveRules(t.Kind)
@@ -105,11 +114,14 @@ Partial Class RulesDialog
         Return If(TryCast(row.Cells(col.Index).Value, String), "")
     End Function
 
-    ''' <summary>Adds a rule the way the user does (Add, type, leave the cell): the key is cleaned up and the tables
-    ''' re-checked. The UI gate calls it.</summary>
+    ''' <summary>Adds a rule the way the user does (Add, type or pick, leave the cell): the key is cleaned up and the
+    ''' tables re-checked. A type must be one of <see cref="TypeChoices"/>, as the combo box allows. The UI gate calls it.</summary>
     Friend Function AddRow(kind As RuleKind, key As String, decision As Verdict, reason As String) As Integer
         Dim t = TableOf(kind)
-        Dim i = t.Grid.Rows.Add(key, ReviewSession.VerdictText(decision), reason)
+        If kind = RuleKind.Type AndAlso Not ColType.Items.Contains(t.Normalize(key)) Then
+            Throw New ArgumentException($"'{key}' is not in the Type list.", NameOf(key))
+        End If
+        Dim i = t.Grid.Rows.Add(If(kind = RuleKind.Type, t.Normalize(key), key), ReviewSession.VerdictText(decision), reason)
         NormalizeRow(t, i)
         ValidateRows()
         Return i
@@ -345,7 +357,7 @@ Partial Class RulesDialog
 
     Private Sub AddKeyedRow(t As KeyedTable, page As TabPage, defaultDecision As String)
         Tabs.SelectedTab = page
-        Dim i = t.Grid.Rows.Add("", defaultDecision, "")
+        Dim i = t.Grid.Rows.Add(If(TypeOf t.KeyCol Is DataGridViewComboBoxColumn, Nothing, CObj("")), defaultDecision, "")
         t.Grid.CurrentCell = t.Grid.Rows(i).Cells(t.KeyCol.Index)
         t.Grid.BeginEdit(True)
     End Sub
