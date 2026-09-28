@@ -5,7 +5,7 @@
        lo que Shared\VersionGate.vb compara para decidir que DLL son de esta familia. -->
 
   <PropertyGroup>
-    <Version>0.1.2</Version>
+    <Version>0.1.3</Version>
     <Company>MANOLOV02</Company>
     <Copyright>Copyright (c) 2026 MANOLOV02</Copyright>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>

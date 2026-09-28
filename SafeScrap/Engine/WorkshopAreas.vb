@@ -162,11 +162,12 @@ Namespace Engine
                 progress:=Sub(p) progress?.Invoke(New ScanProgress With {.Phase = 1, .Fraction = p.BytesDone / Math.Max(1.0, p.BytesTotal), .Plugin = p.Plugin}),
                 cancel:=cancel)
 
+            Dim locations = WorkshopLocations(pm)
             For Each w In found
                 Dim a As New WorkshopArea With {
                     .FormID = w.FormID, .Key = ScrapCatalog.KeyOf(pm, w.FormID), .WorldspaceFormID = w.WorldspaceFormID,
                     .CellFormID = w.CellFormID, .Interior = w.WorldspaceFormID = 0UI, .X = w.PosX, .Y = w.PosY, .Z = w.PosZ}
-                a.Name = DisplayName(pm, w, a.Interior)
+                a.Name = DisplayName(pm, w, a.Interior, locations)
                 Dim list As List(Of PlacedRef) = Nothing
                 If prims.TryGetValue(w.FormID, list) Then
                     For Each p In list
@@ -319,9 +320,37 @@ Namespace Engine
             Return out
         End Function
 
-        ''' <summary>What the user sees: an interior workshop by its cell's name; an exterior one by the workbench's
-        ''' EditorID without the "Workshop…Ref" part (a label, not a law).</summary>
-        Private Shared Function DisplayName(pm As PluginManager, w As PlacedRef, interior As Boolean) As String
+        ''' <summary>Workbench → the location that declares it as its workshop reference: an LCTN's LCSR (master) or
+        ''' ACSR (added) entry {Loc Ref Type, Ref, World/Cell, Grid Y, Grid X} (FO4 schema Rec_LCTN, 16 bytes) whose Loc Ref
+        ''' Type is the DefaultObject WorkshopLocRefType_DO. Measured 27-sep: every listed workbench is in such an entry.</summary>
+        Private Shared Function WorkshopLocations(pm As PluginManager) As Dictionary(Of UInteger, PluginRecord)
+            Dim out As New Dictionary(Of UInteger, PluginRecord)
+            Dim refType = DefaultObject(pm, "WorkshopLocRefType_DO")
+            If refType = 0UI Then Return out
+            For Each lctn As PluginRecord In pm.GetRecordsOfType("LCTN")
+                For Each s In lctn.Subrecords
+                    If s.Signature <> "LCSR" AndAlso s.Signature <> "ACSR" OrElse s.Data Is Nothing Then Continue For
+                    For i = 0 To s.Data.Length - 16 Step 16
+                        If pm.ResolveReferencedFormID(lctn.SourcePluginName, BitConverter.ToUInt32(s.Data, i)) <> refType Then Continue For
+                        Dim bench = pm.ResolveReferencedFormID(lctn.SourcePluginName, BitConverter.ToUInt32(s.Data, i + 4))
+                        If Not out.ContainsKey(bench) Then out(bench) = lctn
+                    Next
+                Next
+            Next
+            Return out
+        End Function
+
+        ''' <summary>What the user sees (a label, not a law): the name of the workshop's location; without one, an interior
+        ''' workshop by its cell's name and an exterior one by the workbench's EditorID without the "Workshop…Ref" part.</summary>
+        Private Shared Function DisplayName(pm As PluginManager, w As PlacedRef, interior As Boolean, locations As Dictionary(Of UInteger, PluginRecord)) As String
+            Dim loc As PluginRecord = Nothing
+            If locations.TryGetValue(w.FormID, loc) Then
+                Dim lfull = loc.GetSubrecord("FULL")
+                If lfull.HasValue Then
+                    Dim n = pm.ResolveFieldString(loc, lfull.Value)
+                    If n <> "" Then Return n
+                End If
+            End If
             Dim cell = If(interior, pm.GetRecord(w.CellFormID), Nothing)
             If cell IsNot Nothing Then
                 Dim full = cell.GetSubrecord("FULL")
