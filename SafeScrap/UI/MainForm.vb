@@ -245,6 +245,7 @@ Namespace UI
             SplitRight.SplitterDistance = CInt(SplitRight.Height * 0.55)
             If _preview Is Nothing OrElse _preview.IsDisposed Then
                 _preview = New PreviewControl() With {.Dock = DockStyle.Fill}
+                _preview.Intent.DrawEngineSkippedForEditing = True   ' a loose object: a piece view (C2 L5)
                 PreviewHostPanel.Controls.Add(_preview)
                 LabelPreview.BringToFront()
             End If
