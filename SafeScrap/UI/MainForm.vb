@@ -273,14 +273,11 @@ Namespace UI
             f.Save(_boot.Paths.ConfigJson)
         End Sub
 
-        ''' <summary>Quiesce the render loop, then Clean and Dispose (the ordering of the library's editor hosts).</summary>
+        ''' <summary>Stops this form's preview timer, then releases the preview by the lib's one route (PreviewControl.Release, ola 7g
+        ''' round 2c): the render loop quiesced, then Dispose - Clean and Control.Dispose, which takes it out of PreviewHostPanel.</summary>
         Private Sub TearDownPreview()
             PreviewTimer.Stop()
-            If _preview IsNot Nothing AndAlso Not _preview.IsDisposed Then
-                _preview.BeginTeardown()
-                _preview.Clean()
-                _preview.Dispose()
-            End If
+            PreviewControl.Release(_preview)
             _preview = Nothing
         End Sub
 

@@ -27,6 +27,9 @@ Friend Module Program
 
     <MethodImpl(MethodImplOptions.NoInlining)>
     Private Sub RealMain(args As String())
+        ' The app's channel for unexpected errors (CrashReport), for what the library survives and reports: a preview control
+        ' released with a step that failed (PreviewControl.Release; ola 7g round 2f, user decision r7g-04 - release and warn).
+        FO4_Base_Library.PreviewControl.UnexpectedErrorChannel = AddressOf CrashReport.ReportError
         Dim language As String = Nothing
         For Each a In args
             If a.StartsWith("-l:", StringComparison.Ordinal) Then language = a.Substring(3)
