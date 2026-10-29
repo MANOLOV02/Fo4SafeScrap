@@ -281,12 +281,14 @@ Namespace UI
             _preview = Nothing
         End Sub
 
+#If DEBUG Then
         ''' <summary>True once the preview control was torn down (the UI gate checks it after closing).</summary>
         Friend ReadOnly Property PreviewReleased As Boolean
             Get
                 Return _preview Is Nothing
             End Get
         End Property
+#End If
 
         Protected Overrides Function ProcessCmdKey(ByRef msg As Message, keyData As Keys) As Boolean
             If keyData = (Keys.Control Or Keys.S) Then
@@ -379,10 +381,12 @@ Namespace UI
             Return If(grid.CurrentCell Is Nothing, Nothing, RowKey(tab, grid.CurrentCell.RowIndex))
         End Function
 
+#If DEBUG Then
         ''' <summary>The keys of a tab's rows as shown (the UI gate reads them).</summary>
         Friend Function ShownRows(tab As ReviewTab) As IReadOnlyList(Of String)
             Return _rows(tab)
         End Function
+#End If
 
         ''' <summary>Re-reads the rows of a tab from the session, keeping the selection, the current row and the scroll
         ''' position: the row that was at the top stays at the top, by key; when it left the list (a filter no longer takes
@@ -590,6 +594,7 @@ Namespace UI
             ShowCurrent()
         End Sub
 
+#If DEBUG Then
         ''' <summary>Shows a tab and its filter/type/search state as the UI gate asks (and as the user would set them).</summary>
         Friend Sub ShowTab(tab As ReviewTab, filter As RowFilter, search As String, Optional recordType As String = Nothing)
             Tabs.SelectedIndex = CInt(tab)
@@ -601,6 +606,7 @@ Namespace UI
             RefreshAllRows()
             ShowCurrent()
         End Sub
+#End If
 
         ''' <summary>Selects rows of a tab by key (the first becomes the current row).</summary>
         Friend Sub SelectKeys(tab As ReviewTab, keys As IEnumerable(Of String))
