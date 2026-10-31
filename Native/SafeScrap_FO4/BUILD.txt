@@ -1,0 +1,6 @@
+# BUILD.txt - provenance of the records of this folder (S0-D, ola SSE). These files are historical records (snapshots,
+# archived code, tool outputs, data): they keep the addresses of the build they measured and are NOT re-anchored.
+# va-census reads this manifest and checks each build line against the file's content.
+# class: b = snapshot / archived code, c = tool output / data. build = what the content measures, per game label.
+# file	class	first_commit_utc	build
+list-cases.json	c	2026-09-26 23:18	sin direcciones 0x14 etiquetadas
